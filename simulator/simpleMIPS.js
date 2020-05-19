@@ -306,7 +306,7 @@ var SimpleMIPS = (function (undefined) {
 			'bltz'	: ['0000 01ss sss0 0000 iiii iiii iiii iiii','RI','S'], // if $s<0 pc=pc+sign_ext(imm<<2)
 			'bgez'	: ['0000 01ss sss0 0001 iiii iiii iiii iiii','RI','S'], // if $s>=0 pc=pc+sign_ext(imm<<2)
 			'bltzal': ['0000 01ss sss1 0000 iiii iiii iiii iiii','RI','S'], // if $s<0 ra = pc+4 and pc=pc+sign_ext(imm<<2)
-			'bgez'	: ['0000 01ss sss0 0001 iiii iiii iiii iiii','RI','S'], // if $s>=0 pc=pc+sign_ext(imm<<2)
+			'bgezal': ['0000 01ss sss1 0001 iiii iiii iiii iiii','RI','S'], // if $s>=0 ra = pc+4 and pc=pc+sign_ext(imm<<2)
 			//'bgezal': ['',''], // 
 			// misc
 			'nop'	: ['0000 0000 0000 0000 0000 0000 0000 0000','N','N'], // no op
@@ -523,6 +523,7 @@ var SimpleMIPS = (function (undefined) {
 				imms = (imm & 0x8000) ? (imm | 0xffff0000) : imm; // sign-extended imm
 
 			this.cycle++;
+			// opcode is first 6 bit.
 			switch (opcode) {
 				case 0:
 					switch (func) {
@@ -637,6 +638,13 @@ var SimpleMIPS = (function (undefined) {
 							break;
 						case 1: // bgez rs, offset
 							if ((r[rs] | 0) >= 0) {
+								nextPC = this.pc + (imms << 2);
+								hasDelaySlot = true;
+							}
+							break;
+						case 17: // bgezal rs, offset
+							if ((r[rs] | 0) >= 0) {
+								r[31] = nextPC+4;
 								nextPC = this.pc + (imms << 2);
 								hasDelaySlot = true;
 							}
@@ -1432,6 +1440,13 @@ var SimpleMIPS = (function (undefined) {
 							branchTargetOffset = imms << 2;
 							branchCondSrcA = rs;
 							branchCond = BRANCH_COND.GTE;
+							break;
+						case 17: // bgezal rs, offset
+							prepareBranch = true;
+							branchTargetOffset = imms << 2;
+							branchCondSrcA = rs;
+							branchCond = BRANCH_COND.GTE;
+							this.registerFile[31] = this.pc+4;
 							break;
 						default:
 							exception |= INVALID_INST;
@@ -2884,6 +2899,7 @@ var SimpleMIPS = (function (undefined) {
 						case 0: str = 'bltz rs, offset'; break;
 						case 16: str = 'bltzal rs, offset'; break;
 						case 1: str = 'bgez rs, offset'; break;
+						case 17: str = 'bgezal rs, offset'; break;
 						default: str = 'unknown'; break;
 					}
 					break;
